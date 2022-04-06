@@ -17,6 +17,7 @@ public class AlarmClock extends Thread implements Observable {
     private boolean isStopped;
     private AtomicLong newSecondMillis;
     private AtomicLong pauseMillis;
+    private Object testSyncObject = new Object();
     private Object syncObj = new Object();
     private ArrayList<Observer> subscribers;
     private final ExecutorService service = Executors.newFixedThreadPool(1);
@@ -39,9 +40,13 @@ public class AlarmClock extends Thread implements Observable {
         if (isStopped) {
             throw new RuntimeException("Alarm is stopped");
         } else {
+            synchronized (testSyncObject){
+                isStopped = true;
+                testSyncObject.notify();
+            }
+
             pauseMillis.set(newSecondMillis.get() + 1000);
             time = 0;
-            isStopped = true;
             observe();
         }
     }
@@ -51,20 +56,24 @@ public class AlarmClock extends Thread implements Observable {
         } else if (isStopped) {
             throw new RuntimeException("Alarm is already stopped");
         } else {
-                pauseMillis.set(System.currentTimeMillis());
+            synchronized (testSyncObject){
                 isPaused = true;
+                testSyncObject.notify();
+            }
+            pauseMillis.set(System.currentTimeMillis());
         }
     }
 
     public void launch(){
         if (isPaused) {
-            isPaused = false;
-            synchronized (syncObj) {
+            synchronized (syncObj){
+                isPaused = false;
                 syncObj.notify();
             }
+
         } else if (isStopped) {
-            isStopped = false;
             synchronized (syncObj) {
+                isStopped = false;
                 syncObj.notify();
             }
         } else {
@@ -72,7 +81,7 @@ public class AlarmClock extends Thread implements Observable {
         }
     }
 
-    @Override
+   /* @Override
     public void run() {
         isStopped = false;
         while (!isInterrupted()) {
@@ -97,6 +106,29 @@ public class AlarmClock extends Thread implements Observable {
                 }
             }
         }
+    }*/
+
+    @Override
+    public void run() {
+        isStopped = false;
+        new ClockThread().start();
+        while (!isInterrupted()){
+            if (!isPaused && !isStopped){
+                observe();
+                try {
+                    synchronized (testSyncObject){
+                        testSyncObject.wait();
+                    }
+                    if (isPaused || isStopped) {
+                        continue;
+                    }
+                    time++;
+                } catch (InterruptedException e){
+                    e.printStackTrace();
+                }
+            }
+
+        }
     }
 
     @Override
@@ -112,5 +144,27 @@ public class AlarmClock extends Thread implements Observable {
 
     public long getTime() {
         return time;
+    }
+
+    private class ClockThread extends Thread {
+        @Override
+        public void run() {
+            while (!isInterrupted()){
+                try {
+                    if (isPaused || isStopped) {
+                        synchronized (syncObj){
+                            syncObj.wait();
+                        }
+                    }
+                    sleep(1000);
+                    synchronized (testSyncObject){
+                        testSyncObject.notify();
+                    }
+                } catch (InterruptedException e) {
+                    e.printStackTrace();
+                }
+            }
+
+        }
     }
 }
