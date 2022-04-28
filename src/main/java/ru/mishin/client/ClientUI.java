@@ -70,6 +70,13 @@ public class ClientUI extends JFrame {
         }
 
         @Override
+        public void onShutDown() {
+            JOptionPane.showMessageDialog(null,"New Alarm for Client " + client.getClientsID(),"Server has been shut downed",1);
+            dispose();
+        }
+
+
+        @Override
         public void onReset() {
             synchronized (tableEvents) {
                 tableEvents.clear();

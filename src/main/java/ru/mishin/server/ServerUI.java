@@ -27,6 +27,11 @@ public class ServerUI  extends JFrame{
             timerLabel.setText(timeText);
             timerLabel.invalidate();
         }
+
+        @Override
+        public void onShutDown() {
+            dispose();
+        }
     };
 
     public ServerUI(Server server){
@@ -60,6 +65,13 @@ public class ServerUI  extends JFrame{
 
         server.setServerUIListener(serverUIListener);
         server.start();
+        shutdownServerButton.addActionListener(new ActionListener() {
+            @Override
+            public void actionPerformed(ActionEvent e) {
+                server.shutdown();
+            }
+        });
+
     }
 
 

@@ -9,5 +9,6 @@ public interface ClientUIListener {
     public void onTime(long time);
     public void onAlarm(List<Event> events);
     public void onSubscribe(long time, List<Event> events);
+    public void onShutDown();
     public void onReset();
 }

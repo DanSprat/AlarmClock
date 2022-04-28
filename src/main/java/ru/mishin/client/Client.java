@@ -106,6 +106,12 @@ public class Client extends Thread {
                    case RESET -> {
 
                    }
+                   case SHUTDOWN -> {
+                       clientUIListener.onShutDown();
+                       Logger.getLogger(TAG).log(Level.INFO,"client " + clientsID + "has benn disconnected. Reason: Server is shut down" );
+
+                       break;
+                   }
                }
            }
         }

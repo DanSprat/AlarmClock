@@ -27,7 +27,8 @@ public class Server extends Thread implements Observer{
         ALARM_EVENT("ALARM_EVENT"),
         ADD_EVENT("ADD_EVENT"),
         SUBSCRIBE("SUBSCRIBE"),
-        RESET("RESET");
+        RESET("RESET"),
+        SHUTDOWN("SHUTDOWN");
         String name;
 
         ServerEvents(String name) {
@@ -42,6 +43,7 @@ public class Server extends Thread implements Observer{
 
     private ServerUIListener serverUIListener;
     private final CopyOnWriteArrayList<ProcessThread> subscribers;
+    private ServerSocket serverSocket;
     private int port;
     public Server(int port) {
         events = new PSQLDataBase();
@@ -55,16 +57,19 @@ public class Server extends Thread implements Observer{
        alarmClock.start();
        alarmClock.subscribe(this::handleEvent);
        Logger.getLogger(TAG).log(Level.INFO, "Server has been started on port: "+ port);
-       while(true){
-           try(ServerSocket serverSocket = new ServerSocket(port)) {
+       try {
+            serverSocket = new ServerSocket(port);
+            while(true){
                Socket socket = serverSocket.accept();
                ProcessThread processThread = new ProcessThread(socket);
                processThread.start();
                subscribers.add(processThread);
                serverUIListener.onChangeNumberClients(subscribers.size());
-           } catch (IOException exception) {
-               exception.printStackTrace();
-           }
+            }
+        } catch (IOException exception) {
+            exception.printStackTrace();
+        } finally {
+           shutdown();
        }
     }
 
@@ -79,8 +84,8 @@ public class Server extends Thread implements Observer{
                 subscribers.forEach(x->x.sendEvent(gson.toJson(eventsByTime)));
             }
         }).start();
+        System.out.println("Update time" + System.currentTimeMillis());
         serverUIListener.onUpdateTime(time);
-
     }
 
 
@@ -156,6 +161,7 @@ public class Server extends Thread implements Observer{
         public void sendTime(long time){
             send(ServerEvents.TIME + "/" + time);
         }
+        public void sendShutDown(){ send(ServerEvents.SHUTDOWN.name); }
 
         public void sendEvent(String text){
             send(ServerEvents.ALARM_EVENT + "/" + text);
@@ -183,7 +189,17 @@ public class Server extends Thread implements Observer{
         subscribers.forEach(x->x.sendReset());
     }
 
+    public void shutdown(){
+        new Thread(() -> {
+            for (var subscriber: subscribers){
+                subscriber.sendShutDown();
+            }
+        }).start();
+        serverUIListener.onShutDown();
+    }
+
     public void setServerUIListener(ServerUIListener serverUIListener) {
         this.serverUIListener = serverUIListener;
     }
+
 }

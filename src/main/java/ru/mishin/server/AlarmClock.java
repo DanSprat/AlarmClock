@@ -12,6 +12,7 @@ public class AlarmClock extends Thread implements Observable {
 
     private static final String TAG = AlarmClock.class.getSimpleName();
 
+
     private long time;
     private boolean isPaused;
     private boolean isStopped;
@@ -112,9 +113,9 @@ public class AlarmClock extends Thread implements Observable {
     public void run() {
         isStopped = false;
         new ClockThread().start();
+        observe();
         while (!isInterrupted()){
             if (!isPaused && !isStopped){
-                observe();
                 try {
                     synchronized (testSyncObject){
                         testSyncObject.wait();
@@ -123,6 +124,7 @@ public class AlarmClock extends Thread implements Observable {
                         continue;
                     }
                     time++;
+                    observe();
                 } catch (InterruptedException e){
                     e.printStackTrace();
                 }
@@ -149,6 +151,7 @@ public class AlarmClock extends Thread implements Observable {
     private class ClockThread extends Thread {
         @Override
         public void run() {
+
             while (!isInterrupted()){
                 try {
                     if (isPaused || isStopped) {
@@ -156,6 +159,7 @@ public class AlarmClock extends Thread implements Observable {
                             syncObj.wait();
                         }
                     }
+
                     sleep(1000);
                     synchronized (testSyncObject){
                         testSyncObject.notify();
